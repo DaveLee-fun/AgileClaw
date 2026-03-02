@@ -4,7 +4,11 @@
 
 ### *The AI agent that measures → learns → improves on its own*
 
-> ⚠️ **Work in Progress** — actively developed. APIs and config format may change.
+> 🚧 **Early Stage — Not Yet Functional**
+> 
+> This project is in its **initial development phase**. The code is being built and is **not ready to run yet**.  
+> APIs, config format, and structure will change significantly.  
+> Watch/Star to follow progress — contributions and ideas welcome!
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
