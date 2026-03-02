@@ -307,7 +307,8 @@ class Agent:
             return f"Unknown skill: {skill_name}\nAvailable skills: {available}"
 
         prompt = self.skills.build_run_prompt(skill, user_instruction)
-        return self.chat(prompt, chat_id=chat_id)
+        # Skill execution prompt is operational metadata, not a new user goal.
+        return self.chat(prompt, chat_id=chat_id, auto_goal_setup=False)
 
     def create_agile_team(
         self,
