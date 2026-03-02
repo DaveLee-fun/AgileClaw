@@ -99,6 +99,31 @@ class SchedulerActionTests(unittest.TestCase):
             self.assertIn("good", scheduled_ids)
             self.assertNotIn("bad", scheduled_ids)
 
+    def test_non_dict_job_payload_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            jobs_file = Path(tmp) / "cron_jobs.json"
+            jobs = {
+                "bad": "not-an-object",
+                "good": {
+                    "id": "good",
+                    "name": "good",
+                    "schedule": "every 1h",
+                    "action": "chat",
+                    "message": "ok",
+                    "enabled": True,
+                },
+            }
+            jobs_file.write_text(json.dumps(jobs))
+
+            scheduler = CronScheduler(jobs_file=str(jobs_file))
+            listed = scheduler.list_jobs()
+            scheduled_ids = {job.id for job in scheduler.scheduler.get_jobs()}
+            scheduler.stop()
+
+            self.assertEqual(len(listed), 1)
+            self.assertEqual(listed[0]["id"], "good")
+            self.assertIn("good", scheduled_ids)
+
 
 if __name__ == "__main__":
     unittest.main()
