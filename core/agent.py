@@ -112,13 +112,35 @@ class Agent:
             "달성",
             "kpi",
             "성과",
+            "지표",
+            "스프린트",
+            "sprint",
+            "improve",
+            "optimize",
             "target",
             "goal",
             "achieve",
             "increase",
             "grow",
+            "reduce",
+            "improvement",
+            "optimization",
+            "증가",
+            "개선",
+            "향상",
+            "최적화",
         ]
-        return any(marker in text for marker in goal_markers)
+        if any(marker in text for marker in goal_markers):
+            return True
+
+        # Fallback heuristic: action + numeric target usually indicates a goal request.
+        has_action = any(
+            marker in text
+            for marker in ["올려", "늘려", "줄여", "개선", "향상", "increase", "reduce", "reach"]
+        )
+        has_target_number = bool(re.search(r"\d+\s*(%|명|개|원|달러|usd)?", text))
+        has_deadline_or_target = ("까지" in text) or ("by " in text) or ("to " in text)
+        return has_action and has_target_number and has_deadline_or_target
 
     @staticmethod
     def _extract_goal_name(user_message: str) -> str:
