@@ -3,13 +3,41 @@ Claude API client wrapper.
 Handles tool_use loop — sends messages, executes tool calls, returns final response.
 """
 import anthropic
-from typing import Any
+import time
 
 class ClaudeClient:
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5", max_tokens: int = 4096):
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "claude-sonnet-4-5",
+        max_tokens: int = 4096,
+        max_tool_rounds: int = 10,
+        max_retries: int = 2,
+        retry_base_delay: float = 1.0,
+    ):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
+        self.max_tool_rounds = max_tool_rounds
+        self.max_retries = max_retries
+        self.retry_base_delay = retry_base_delay
+
+    def _create_message(self, system: str, messages: list[dict], tools: list[dict]):
+        attempts = self.max_retries + 1
+        for attempt in range(1, attempts + 1):
+            try:
+                return self.client.messages.create(
+                    model=self.model,
+                    max_tokens=self.max_tokens,
+                    system=system,
+                    messages=messages,
+                    tools=tools if tools else [],
+                )
+            except Exception:
+                if attempt == attempts:
+                    raise
+                sleep_seconds = self.retry_base_delay * (2 ** (attempt - 1))
+                time.sleep(sleep_seconds)
 
     def chat(
         self,
@@ -22,14 +50,8 @@ class ClaudeClient:
         Run a full Claude conversation with tool_use loop.
         Returns the final text response.
         """
-        while True:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=self.max_tokens,
-                system=system,
-                messages=messages,
-                tools=tools if tools else [],
-            )
+        for _ in range(self.max_tool_rounds):
+            response = self._create_message(system=system, messages=messages, tools=tools)
 
             # Collect text and tool_use blocks
             tool_uses = []
@@ -58,3 +80,8 @@ class ClaudeClient:
                     "content": str(result),
                 })
             messages.append({"role": "user", "content": tool_results})
+
+        return (
+            f"Error: tool loop exceeded max rounds ({self.max_tool_rounds}). "
+            "Please narrow the task and try again."
+        )
