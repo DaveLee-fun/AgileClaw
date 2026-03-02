@@ -25,13 +25,19 @@ Format your response as:
 """
 
 
-def build_agile_prompt(goals_content: str) -> str:
+def build_agile_prompt(goals_content: str, team_refs: str = "") -> str:
     today = datetime.now().strftime("%Y-%m-%d %H:%M")
+    refs = (team_refs or "").strip() or "- (none)"
     return f"""Run the agile review for {today}.
 
 Current goals and KPIs:
 ---
 {goals_content}
+---
+
+Goal team charters:
+---
+{refs}
 ---
 
 Use your tools to measure the current state, compare vs targets, and suggest improvements.
