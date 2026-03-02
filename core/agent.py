@@ -11,7 +11,7 @@ from core.skills import SkillCatalog
 from tools import load_tools
 from agile.loop import AGILE_SYSTEM_PROMPT, build_agile_prompt
 from agile.report import build_daily_report_prompt, build_weekly_report_prompt
-from agile.team import build_team_bootstrap_prompt
+from agile.team import build_team_bootstrap_prompt, build_team_update_prompt
 
 SYSTEM_PROMPT_BASE = """You are AgileClaw — a personal AI agent with full access to the host machine.
 
@@ -70,6 +70,18 @@ class Agent:
         if skills_block:
             system += f"\n\nSkills:\n{skills_block}"
         return system
+
+    def _build_team_refs(self) -> str:
+        teams = self.memory.list_teams()
+        if not teams:
+            return ""
+
+        lines: list[str] = []
+        for team in teams:
+            lines.append(
+                f"- {team['team_id']} | goal={team['goal_name']} | charter={team['path']}"
+            )
+        return "\n".join(lines)
 
     def _tool_executor(self, tool_name: str, tool_input: dict) -> str:
         """Execute a tool call from Claude."""
@@ -143,13 +155,14 @@ class Agent:
                 ),
             )
             self.memory.log(
-                f"Auto team setup: {team['team_id']} for goal '{goal_name}'",
+                f"Auto team setup: {team['team_id']} for goal '{goal_name}' (created={team.get('created')})",
                 "agile",
             )
             prepared_message = (
                 "[AUTO_TEAM_SETUP]\n"
                 f"Team ID: {team['team_id']}\n"
                 f"Team Charter: {team['path']}\n"
+                f"Team Created: {team.get('created', False)}\n"
                 "Requirement: confirm how each KPI will be measured first, then execute the goal.\n\n"
                 "Original user request:\n"
                 f"{user_message}"
@@ -188,7 +201,7 @@ class Agent:
         self.skills.refresh()
         self._refresh_tools()
         goals = self.memory.load_goals()
-        prompt = build_agile_prompt(goals)
+        prompt = build_agile_prompt(goals, team_refs=self._build_team_refs())
         context = self.memory.load_context()
 
         system = AGILE_SYSTEM_PROMPT
@@ -211,7 +224,7 @@ class Agent:
         self.skills.refresh()
         self._refresh_tools()
         goals = self.memory.load_goals()
-        prompt = build_daily_report_prompt(goals)
+        prompt = build_daily_report_prompt(goals, team_refs=self._build_team_refs())
         context = self.memory.load_context()
 
         system = AGILE_SYSTEM_PROMPT
@@ -234,7 +247,7 @@ class Agent:
         self.skills.refresh()
         self._refresh_tools()
         goals = self.memory.load_goals()
-        prompt = build_weekly_report_prompt(goals)
+        prompt = build_weekly_report_prompt(goals, team_refs=self._build_team_refs())
         context = self.memory.load_context()
 
         system = AGILE_SYSTEM_PROMPT
@@ -285,15 +298,24 @@ class Agent:
         info = self.memory.create_team(goal_name=goal_name, objective=objective, kpi_hint=kpi_hint)
         team_id = info["team_id"]
         team_path = info["path"]
+        created = bool(info.get("created", True))
 
-        kickoff_prompt = build_team_bootstrap_prompt(
-            team_id=team_id,
-            team_file_path=team_path,
-            user_instruction="Focus on measurable KPI cadence and first sprint execution.",
-        )
-        kickoff_result = self.chat(kickoff_prompt, chat_id=chat_id, auto_goal_setup=False)
+        if created:
+            prompt = build_team_bootstrap_prompt(
+                team_id=team_id,
+                team_file_path=team_path,
+                user_instruction="Focus on measurable KPI cadence and first sprint execution.",
+            )
+        else:
+            prompt = build_team_update_prompt(
+                team_id=team_id,
+                team_file_path=team_path,
+                user_instruction="Continue this goal team sprint with latest KPI measurements.",
+            )
+
+        kickoff_result = self.chat(prompt, chat_id=chat_id, auto_goal_setup=False)
         return (
-            f"Agile team created.\n"
+            f"Agile team {'created' if created else 'reused'}.\n"
             f"- team_id: {team_id}\n"
             f"- charter: {team_path}\n\n"
             f"Kickoff summary:\n{kickoff_result}"
