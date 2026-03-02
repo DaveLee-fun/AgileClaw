@@ -43,3 +43,17 @@ def run(command: str, timeout: int = 30) -> str:
         return f"Error: command timed out after {timeout}s"
     except Exception as e:
         return f"Error: {e}"
+
+
+def _handle_shell(tool_input: dict, context: dict) -> str:
+    timeout = int(tool_input.get("timeout", 30))
+    return run(tool_input["command"], timeout)
+
+
+def get_tool_specs() -> list[dict]:
+    return [
+        {
+            "definition": TOOL_DEFINITION,
+            "handler": _handle_shell,
+        }
+    ]
