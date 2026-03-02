@@ -1,9 +1,23 @@
-config.yaml
-memory/
-cron_jobs.json
+# macOS
+.DS_Store
+
+# Python
 __pycache__/
 *.pyc
-.env
+.pytest_cache/
+.mypy_cache/
 venv/
+.venv/
 *.egg-info/
-.DS_Store
+
+# Env / secrets
+.env
+.env.*
+config.yaml
+src/config.yaml
+
+# Runtime state
+memory/
+cron_jobs.json
+src/memory/
+src/cron_jobs.json

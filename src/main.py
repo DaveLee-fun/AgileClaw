@@ -11,6 +11,7 @@ import yaml
 from pathlib import Path
 
 from core.agent import Agent
+from core.version import __version__
 from channels.telegram import TelegramChannel
 from scheduler.cron import CronScheduler
 
@@ -38,7 +39,7 @@ def main():
         return
 
     config = load_config(config_path)
-    logger.info("AgileClaw starting...")
+    logger.info("AgileClaw starting... version=%s", __version__)
 
     # Initialize agent
     agent = Agent(config)
@@ -96,7 +97,7 @@ def main():
     else:
         logger.warning("No channel configured. Add 'telegram' to config.yaml.")
         # Interactive CLI fallback
-        print("\nAgileClaw CLI mode (no Telegram configured)")
+        print(f"\nAgileClaw v{__version__} CLI mode (no Telegram configured)")
         print("Type 'quit' to exit, 'agile' for agile review, 'skills' to list skills")
         print("Type: skill <skill_key> [instruction]")
         print("Type: goal <name> | <objective> [| <kpi_hint>]")

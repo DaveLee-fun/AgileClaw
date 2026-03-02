@@ -6,6 +6,8 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
+from core.version import __version__
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +35,7 @@ class TelegramChannel:
 
     async def _handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
-            "👋 AgileClaw ready!\n\n"
+            f"👋 AgileClaw v{__version__} ready!\n\n"
             "Commands:\n"
             "/goal <name> | <objective> [| <kpi_hint>] — Create Agile Team for goal\n"
             "/teams — List Agile Teams\n"
