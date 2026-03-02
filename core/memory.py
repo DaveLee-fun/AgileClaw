@@ -5,8 +5,9 @@ Stores conversation history, goals, and logs as plain files.
 import json
 from datetime import datetime
 from pathlib import Path
+import re
 from agile.loop import GOALS_TEMPLATE
-from agile.team import make_team_id, build_team_charter
+from agile.team import make_team_id, build_team_charter, slugify, make_goal_key
 
 
 class Memory:
@@ -26,6 +27,45 @@ class Memory:
 
         teams_dir = self.dir / "teams"
         teams_dir.mkdir(parents=True, exist_ok=True)
+
+        team_index_file = self.dir / "teams" / "index.json"
+        if not team_index_file.exists():
+            team_index_file.write_text("{}")
+
+    def _team_index_path(self) -> Path:
+        return self.dir / "teams" / "index.json"
+
+    def _load_team_index(self) -> dict:
+        path = self._team_index_path()
+        try:
+            return json.loads(path.read_text())
+        except Exception:
+            return {}
+
+    def _save_team_index(self, data: dict):
+        path = self._team_index_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+
+    @staticmethod
+    def _legacy_goal_key(goal_name: str) -> str:
+        """
+        Backward compatibility for older index keys that only kept [a-z0-9].
+        """
+        value = (goal_name or "").strip().lower()
+        value = re.sub(r"[^a-z0-9]+", "-", value)
+        value = re.sub(r"-+", "-", value).strip("-")
+        return value or "goal"
+
+    @staticmethod
+    def _extract_goal_name_from_charter(team_file: Path) -> str:
+        try:
+            for line in team_file.read_text().splitlines():
+                if line.startswith("- Goal Name:"):
+                    return line.split(":", 1)[1].strip()
+        except Exception:
+            return ""
+        return ""
 
     def load_goals(self) -> str:
         """Load goals.md content."""
@@ -80,7 +120,55 @@ class Memory:
             json.dump(history, f, ensure_ascii=False, indent=2)
 
     def create_team(self, goal_name: str, objective: str, kpi_hint: str = "") -> dict:
-        """Create a goal-specific agile team charter file."""
+        """
+        Create or reuse a goal-specific agile team charter file.
+
+        Reuse rule:
+        - If the same normalized goal key exists in team index and file exists, reuse team.
+        - Otherwise create a new team and register it in index.
+        """
+        goal_key = make_goal_key(goal_name)
+        index = self._load_team_index()
+
+        lookup_keys = [goal_key, slugify(goal_name), self._legacy_goal_key(goal_name)]
+        existing_team_id = ""
+        matched_key = ""
+        for key in lookup_keys:
+            if key and key in index:
+                existing_team_id = index.get(key, "")
+                matched_key = key
+                break
+
+        if existing_team_id:
+            team_file = self.dir / "teams" / f"{existing_team_id}.md"
+            if team_file.exists():
+                # For legacy keys, verify actual charter goal before reusing.
+                if matched_key and matched_key != goal_key:
+                    charter_goal = self._extract_goal_name_from_charter(team_file)
+                    if charter_goal and make_goal_key(charter_goal) != goal_key:
+                        existing_team_id = ""
+
+        if existing_team_id:
+            team_file = self.dir / "teams" / f"{existing_team_id}.md"
+            if team_file.exists():
+                # Migrate legacy key to hash key to prevent future collisions.
+                changed = False
+                if index.get(goal_key) != existing_team_id:
+                    index[goal_key] = existing_team_id
+                    changed = True
+                if matched_key and matched_key != goal_key:
+                    index.pop(matched_key, None)
+                    changed = True
+                if changed:
+                    self._save_team_index(index)
+                return {
+                    "team_id": existing_team_id,
+                    "path": str(team_file.resolve()),
+                    "goal_name": goal_name,
+                    "objective": objective,
+                    "created": False,
+                }
+
         team_id = make_team_id(goal_name)
         charter = build_team_charter(
             team_id=team_id,
@@ -90,11 +178,17 @@ class Memory:
         )
         team_file = self.dir / "teams" / f"{team_id}.md"
         team_file.write_text(charter)
+        index[goal_key] = team_id
+        for key in lookup_keys:
+            if key and key != goal_key and index.get(key) == team_id:
+                index.pop(key, None)
+        self._save_team_index(index)
         return {
             "team_id": team_id,
             "path": str(team_file.resolve()),
             "goal_name": goal_name,
             "objective": objective,
+            "created": True,
         }
 
     def list_teams(self) -> list[dict]:
