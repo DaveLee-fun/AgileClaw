@@ -102,8 +102,12 @@ class Memory:
         history_file = self.dir / f"history-{chat_id}.json"
         if not history_file.exists():
             return []
-        with open(history_file) as f:
-            history = json.load(f)
+        try:
+            with open(history_file) as f:
+                history = json.load(f)
+        except Exception:
+            self.log(f"Corrupted history file detected: {history_file.name}. Reset to empty history.", "error")
+            return []
         return history[-limit:]
 
     def save_message(self, chat_id: str, role: str, content: str):
@@ -111,8 +115,12 @@ class Memory:
         history_file = self.dir / f"history-{chat_id}.json"
         history = []
         if history_file.exists():
-            with open(history_file) as f:
-                history = json.load(f)
+            try:
+                with open(history_file) as f:
+                    history = json.load(f)
+            except Exception:
+                self.log(f"Corrupted history file overwritten: {history_file.name}.", "error")
+                history = []
         history.append({"role": role, "content": content})
         # Keep last 100 messages per chat
         history = history[-100:]
@@ -133,6 +141,7 @@ class Memory:
         lookup_keys = [goal_key, slugify(goal_name), self._legacy_goal_key(goal_name)]
         existing_team_id = ""
         matched_key = ""
+        stale_key = ""
         for key in lookup_keys:
             if key and key in index:
                 existing_team_id = index.get(key, "")
@@ -147,6 +156,7 @@ class Memory:
                     charter_goal = self._extract_goal_name_from_charter(team_file)
                     if charter_goal and make_goal_key(charter_goal) != goal_key:
                         existing_team_id = ""
+                        stale_key = matched_key
 
         if existing_team_id:
             team_file = self.dir / "teams" / f"{existing_team_id}.md"
@@ -168,6 +178,9 @@ class Memory:
                     "objective": objective,
                     "created": False,
                 }
+        elif stale_key:
+            index.pop(stale_key, None)
+            self._save_team_index(index)
 
         team_id = make_team_id(goal_name)
         charter = build_team_charter(
