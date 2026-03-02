@@ -44,6 +44,61 @@ class SchedulerActionTests(unittest.TestCase):
             self.assertEqual(jobs[0]["action"], "chat")
             self.assertEqual(jobs[0]["message"], "hello")
 
+    def test_invalid_jobs_file_does_not_crash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            jobs_file = Path(tmp) / "cron_jobs.json"
+            jobs_file.write_text("{invalid json")
+
+            scheduler = CronScheduler(jobs_file=str(jobs_file))
+            jobs = scheduler.list_jobs()
+            scheduler.stop()
+
+            self.assertEqual(jobs, [])
+
+    def test_add_job_rejects_invalid_schedule(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            jobs_file = Path(tmp) / "cron_jobs.json"
+            scheduler = CronScheduler(jobs_file=str(jobs_file))
+
+            with self.assertRaises(ValueError):
+                scheduler.add_job(
+                    name="bad-schedule",
+                    schedule="every 0m",
+                    action="chat",
+                    message="hello",
+                )
+            scheduler.stop()
+
+    def test_invalid_persisted_schedule_is_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            jobs_file = Path(tmp) / "cron_jobs.json"
+            jobs = {
+                "bad": {
+                    "id": "bad",
+                    "name": "bad-schedule",
+                    "schedule": "every 0m",
+                    "action": "chat",
+                    "message": "x",
+                    "enabled": True,
+                },
+                "good": {
+                    "id": "good",
+                    "name": "good-schedule",
+                    "schedule": "every 1h",
+                    "action": "chat",
+                    "message": "y",
+                    "enabled": True,
+                },
+            }
+            jobs_file.write_text(json.dumps(jobs))
+
+            scheduler = CronScheduler(jobs_file=str(jobs_file))
+            scheduled_ids = {job.id for job in scheduler.scheduler.get_jobs()}
+            scheduler.stop()
+
+            self.assertIn("good", scheduled_ids)
+            self.assertNotIn("bad", scheduled_ids)
+
 
 if __name__ == "__main__":
     unittest.main()
