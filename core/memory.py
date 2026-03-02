@@ -38,7 +38,11 @@ class Memory:
     def _load_team_index(self) -> dict:
         path = self._team_index_path()
         try:
-            return json.loads(path.read_text())
+            data = json.loads(path.read_text())
+            if isinstance(data, dict):
+                return data
+            self.log("teams/index.json is not an object. Reset to empty index.", "error")
+            return {}
         except Exception:
             return {}
 
@@ -108,7 +112,21 @@ class Memory:
         except Exception:
             self.log(f"Corrupted history file detected: {history_file.name}. Reset to empty history.", "error")
             return []
-        return history[-limit:]
+        if not isinstance(history, list):
+            self.log(f"Invalid history format detected: {history_file.name}. Reset to empty history.", "error")
+            return []
+        normalized: list[dict] = []
+        for item in history:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role")
+            content = item.get("content")
+            if role not in {"user", "assistant"}:
+                continue
+            if not isinstance(content, str):
+                content = str(content)
+            normalized.append({"role": role, "content": content})
+        return normalized[-limit:]
 
     def save_message(self, chat_id: str, role: str, content: str):
         """Append a message to conversation history."""
@@ -121,6 +139,9 @@ class Memory:
             except Exception:
                 self.log(f"Corrupted history file overwritten: {history_file.name}.", "error")
                 history = []
+        if not isinstance(history, list):
+            self.log(f"Invalid history format overwritten: {history_file.name}.", "error")
+            history = []
         history.append({"role": role, "content": content})
         # Keep last 100 messages per chat
         history = history[-100:]
