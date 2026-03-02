@@ -44,3 +44,24 @@ def write_file(path: str, content: str) -> str:
         return f"Written {len(content)} bytes to {path}"
     except Exception as e:
         return f"Error writing file: {e}"
+
+
+def _handle_read(tool_input: dict, context: dict) -> str:
+    return read_file(tool_input["path"])
+
+
+def _handle_write(tool_input: dict, context: dict) -> str:
+    return write_file(tool_input["path"], tool_input["content"])
+
+
+def get_tool_specs() -> list[dict]:
+    return [
+        {
+            "definition": TOOL_READ,
+            "handler": _handle_read,
+        },
+        {
+            "definition": TOOL_WRITE,
+            "handler": _handle_write,
+        },
+    ]
