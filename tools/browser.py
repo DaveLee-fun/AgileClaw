@@ -113,3 +113,52 @@ def browser_get_text(headless: bool = False) -> str:
         return text[:5000]
     except Exception as e:
         return f"Error: {e}"
+
+
+def _headless(context: dict) -> bool:
+    return bool(context.get("headless", False))
+
+
+def _handle_open(tool_input: dict, context: dict) -> str:
+    return browser_open(tool_input["url"], _headless(context))
+
+
+def _handle_screenshot(tool_input: dict, context: dict) -> str:
+    return browser_screenshot(_headless(context))
+
+
+def _handle_click(tool_input: dict, context: dict) -> str:
+    return browser_click(tool_input["selector"], _headless(context))
+
+
+def _handle_type(tool_input: dict, context: dict) -> str:
+    return browser_type(tool_input["selector"], tool_input["text"], _headless(context))
+
+
+def _handle_get_text(tool_input: dict, context: dict) -> str:
+    return browser_get_text(_headless(context))
+
+
+def get_tool_specs() -> list[dict]:
+    return [
+        {
+            "definition": TOOL_OPEN,
+            "handler": _handle_open,
+        },
+        {
+            "definition": TOOL_SCREENSHOT,
+            "handler": _handle_screenshot,
+        },
+        {
+            "definition": TOOL_CLICK,
+            "handler": _handle_click,
+        },
+        {
+            "definition": TOOL_TYPE,
+            "handler": _handle_type,
+        },
+        {
+            "definition": TOOL_GET_TEXT,
+            "handler": _handle_get_text,
+        },
+    ]
