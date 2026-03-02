@@ -63,6 +63,9 @@ def load_tools() -> tuple[list[dict], dict[str, ToolHandler], list[str]]:
             if not tool_name:
                 errors.append(f"{module_name}: tool definition missing name")
                 continue
+            if tool_name in handlers:
+                errors.append(f"{module_name}: duplicate tool name '{tool_name}'")
+                continue
             definitions.append(definition)
             handlers[tool_name] = handler
 
