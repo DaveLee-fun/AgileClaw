@@ -10,6 +10,9 @@ class GoalDetectionTests(unittest.TestCase):
     def test_goal_request_detected_english(self):
         self.assertTrue(Agent._looks_like_goal_request("Goal: increase revenue by 30%"))
 
+    def test_goal_request_detected_korean_heuristic(self):
+        self.assertTrue(Agent._looks_like_goal_request("3월 말까지 앱 설치를 80으로 올려줘"))
+
     def test_non_goal_request_not_detected(self):
         self.assertFalse(Agent._looks_like_goal_request("오늘 날씨 알려줘"))
 
