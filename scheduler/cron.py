@@ -4,6 +4,8 @@ Jobs persist to cron_jobs.json.
 Supports cron strings and interval strings like "every 1h", "every 30m".
 """
 import json
+import logging
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +13,8 @@ from typing import Callable, Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+
+logger = logging.getLogger(__name__)
 
 
 class CronScheduler:
@@ -24,16 +28,32 @@ class CronScheduler:
         """Load persisted jobs and schedule them."""
         for raw_job in self._load_jobs().values():
             job = self._normalize_job(raw_job)
-            if job.get("enabled", True):
+            if not job.get("enabled", True):
+                continue
+            if not job.get("id") or not job.get("schedule"):
+                logger.warning("Skipping invalid cron job (missing id/schedule): %s", job)
+                continue
+            try:
                 self._schedule_job(job)
+            except Exception as exc:
+                logger.warning("Skipping cron job %s due to schedule error: %s", job.get("id"), exc)
 
     def _load_jobs(self) -> dict:
         if self.jobs_file.exists():
-            with open(self.jobs_file) as f:
-                return json.load(f)
+            try:
+                with open(self.jobs_file) as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+                logger.warning("jobs file is not a JSON object: %s", self.jobs_file)
+                return {}
+            except Exception as exc:
+                logger.warning("Failed to load jobs file %s: %s", self.jobs_file, exc)
+                return {}
         return {}
 
     def _save_jobs(self, jobs: dict):
+        self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.jobs_file, "w") as f:
             json.dump(jobs, f, indent=2, ensure_ascii=False)
 
@@ -48,6 +68,34 @@ class CronScheduler:
             normalized["enabled"] = True
         return normalized
 
+    @staticmethod
+    def _parse_trigger(schedule: str):
+        schedule_text = (schedule or "").strip()
+        if not schedule_text:
+            raise ValueError("Schedule cannot be empty")
+
+        lowered = schedule_text.lower()
+        if lowered.startswith("every "):
+            # e.g. "every 1h", "every 30m", "every 2d", "every 45"
+            val = schedule_text[6:].strip()
+            match = re.fullmatch(r"(\d+)\s*([hmds]?)", val, flags=re.IGNORECASE)
+            if not match:
+                raise ValueError(f"Invalid interval schedule: {schedule_text}")
+            amount = int(match.group(1))
+            unit = (match.group(2) or "s").lower()
+            if amount <= 0:
+                raise ValueError(f"Interval must be > 0: {schedule_text}")
+            if unit == "h":
+                return IntervalTrigger(hours=amount)
+            if unit == "m":
+                return IntervalTrigger(minutes=amount)
+            if unit == "d":
+                return IntervalTrigger(days=amount)
+            return IntervalTrigger(seconds=amount)
+
+        # Treat as cron string
+        return CronTrigger.from_crontab(schedule_text)
+
     def _schedule_job(self, job: dict):
         """Add job to APScheduler."""
         schedule = job["schedule"]
@@ -57,22 +105,7 @@ class CronScheduler:
             if self.on_trigger:
                 self.on_trigger(dict(job))
 
-        # Parse schedule
-        if schedule.startswith("every "):
-            # e.g. "every 1h", "every 30m", "every 2d"
-            val = schedule[6:]
-            if val.endswith("h"):
-                trigger = IntervalTrigger(hours=int(val[:-1]))
-            elif val.endswith("m"):
-                trigger = IntervalTrigger(minutes=int(val[:-1]))
-            elif val.endswith("d"):
-                trigger = IntervalTrigger(days=int(val[:-1]))
-            else:
-                trigger = IntervalTrigger(seconds=int(val))
-        else:
-            # Treat as cron string
-            trigger = CronTrigger.from_crontab(schedule)
-
+        trigger = self._parse_trigger(schedule)
         self.scheduler.add_job(trigger_fn, trigger, id=job_id, replace_existing=True)
 
     def add_job(
@@ -95,6 +128,9 @@ class CronScheduler:
           - weekly_report: run Agent.run_weekly_report
           - run_skill: run Agent.run_skill(skill, message)
         """
+        # Validate schedule before persisting the job.
+        self._parse_trigger(schedule)
+
         job_id = str(uuid.uuid4())[:8]
         job = {
             "id": job_id,
