@@ -22,6 +22,11 @@ fi
 
 # memory 폴더 생성
 mkdir -p memory
+mkdir -p skills
+if [ ! -f cron_jobs.json ] && [ -f cron_jobs.example.json ]; then
+    cp cron_jobs.example.json cron_jobs.json
+    echo "🗓️ cron_jobs.json 생성됨 (example 기반)"
+fi
 
 echo "✅ 설치 완료!"
 echo ""
@@ -29,3 +34,4 @@ echo "다음 단계:"
 echo "1. config.yaml 편집 (bot_token, api_key 입력)"
 echo "2. source venv/bin/activate"
 echo "3. python main.py"
+echo "4. skills/<name>/SKILL.md 추가로 커스텀 스킬 확장"
