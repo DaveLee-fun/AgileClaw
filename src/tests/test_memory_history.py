@@ -28,6 +28,18 @@ class MemoryHistoryTests(unittest.TestCase):
             self.assertEqual(parsed[0]["role"], "user")
             self.assertEqual(parsed[0]["content"], "hello")
 
+    def test_chat_id_is_sanitized_for_history_filename(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            memory = Memory(memory_dir=tmp)
+            chat_id = "team/../unsafe"
+            memory.save_message(chat_id, "user", "x")
+
+            safe_id = memory._sanitize_chat_id(chat_id)  # pylint: disable=protected-access
+            unsafe_path = Path(tmp) / f"history-{chat_id}.json"
+            safe_path = Path(tmp) / f"history-{safe_id}.json"
+            self.assertFalse(unsafe_path.exists())
+            self.assertTrue(safe_path.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

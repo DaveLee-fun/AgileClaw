@@ -33,6 +33,12 @@ class TelegramChannel:
     def _is_allowed(self, user_id: int) -> bool:
         return not self.allowed_users or user_id in self.allowed_users
 
+    def _is_authorized_update(self, update: Update) -> bool:
+        user = update.effective_user
+        if not user:
+            return False
+        return self._is_allowed(user.id)
+
     async def _handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"👋 AgileClaw v{__version__} ready!\n\n"
@@ -48,7 +54,7 @@ class TelegramChannel:
         )
 
     async def _handle_goal(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
 
         raw = " ".join(context.args).strip()
@@ -81,7 +87,7 @@ class TelegramChannel:
         await update.message.reply_text(response)
 
     async def _handle_teams(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
 
         teams = self.agent.list_agile_teams()
@@ -95,7 +101,7 @@ class TelegramChannel:
         await update.message.reply_text("\n".join(lines))
 
     async def _handle_agile(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
         await update.message.reply_text("🔄 Running agile review...")
         chat_id = str(update.effective_chat.id)
@@ -103,7 +109,7 @@ class TelegramChannel:
         await update.message.reply_text(response)
 
     async def _handle_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
 
         mode = (context.args[0].lower() if context.args else "daily").strip()
@@ -121,7 +127,7 @@ class TelegramChannel:
         await update.message.reply_text(response)
 
     async def _handle_skills(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
         skills = self.agent.list_skills()
         if not skills:
@@ -134,7 +140,7 @@ class TelegramChannel:
         await update.message.reply_text("\n".join(lines))
 
     async def _handle_runskill(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
         if not context.args:
             await update.message.reply_text(
@@ -150,7 +156,7 @@ class TelegramChannel:
         await update.message.reply_text(response)
 
     async def _handle_cron(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
             return
         # Show cron job list
         if hasattr(self.agent, 'scheduler') and self.agent.scheduler:
@@ -169,7 +175,9 @@ class TelegramChannel:
             await update.message.reply_text("Scheduler not initialized.")
 
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not self._is_allowed(update.effective_user.id):
+        if not self._is_authorized_update(update):
+            return
+        if not update.message or update.effective_chat is None:
             return
         user_message = update.message.text
         chat_id = str(update.effective_chat.id)

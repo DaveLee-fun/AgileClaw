@@ -101,9 +101,18 @@ class Memory:
         with open(log_file, "a") as f:
             f.write(entry)
 
+    @staticmethod
+    def _sanitize_chat_id(chat_id: str) -> str:
+        raw = str(chat_id or "default")
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", raw).strip("._")
+        return safe or "default"
+
+    def _history_path(self, chat_id: str) -> Path:
+        return self.dir / f"history-{self._sanitize_chat_id(chat_id)}.json"
+
     def get_conversation_history(self, chat_id: str, limit: int = 20) -> list[dict]:
         """Load recent conversation history for a chat."""
-        history_file = self.dir / f"history-{chat_id}.json"
+        history_file = self._history_path(chat_id)
         if not history_file.exists():
             return []
         try:
@@ -130,7 +139,7 @@ class Memory:
 
     def save_message(self, chat_id: str, role: str, content: str):
         """Append a message to conversation history."""
-        history_file = self.dir / f"history-{chat_id}.json"
+        history_file = self._history_path(chat_id)
         history = []
         if history_file.exists():
             try:

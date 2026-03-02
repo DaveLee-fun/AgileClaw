@@ -27,6 +27,61 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
+def normalize_config(raw_config: dict | None) -> dict:
+    if raw_config is None:
+        raw_config = {}
+    if not isinstance(raw_config, dict):
+        raise ValueError("config root must be a YAML object")
+
+    config = dict(raw_config)
+
+    claude_cfg = config.get("claude")
+    if not isinstance(claude_cfg, dict):
+        raise ValueError("missing 'claude' section")
+    if not str(claude_cfg.get("api_key", "")).strip():
+        raise ValueError("missing 'claude.api_key'")
+
+    memory_cfg = config.get("memory")
+    if memory_cfg is None:
+        memory_cfg = {}
+    if not isinstance(memory_cfg, dict):
+        raise ValueError("'memory' must be an object")
+    memory_cfg.setdefault("dir", "./memory")
+    config["memory"] = memory_cfg
+
+    skills_cfg = config.get("skills")
+    if skills_cfg is None:
+        skills_cfg = {}
+    if not isinstance(skills_cfg, dict):
+        raise ValueError("'skills' must be an object")
+    skills_cfg.setdefault("dir", "./skills")
+    config["skills"] = skills_cfg
+
+    browser_cfg = config.get("browser")
+    if browser_cfg is None:
+        browser_cfg = {}
+    if not isinstance(browser_cfg, dict):
+        raise ValueError("'browser' must be an object")
+    browser_cfg.setdefault("headless", False)
+    config["browser"] = browser_cfg
+
+    telegram_cfg = config.get("telegram")
+    if telegram_cfg is not None:
+        if not isinstance(telegram_cfg, dict):
+            raise ValueError("'telegram' must be an object")
+        if not str(telegram_cfg.get("bot_token", "")).strip():
+            raise ValueError("missing 'telegram.bot_token'")
+
+    cron_cfg = config.get("cron")
+    if cron_cfg is not None:
+        if not isinstance(cron_cfg, dict):
+            raise ValueError("'cron' must be an object")
+        if not str(cron_cfg.get("jobs_file", "")).strip():
+            raise ValueError("missing 'cron.jobs_file'")
+
+    return config
+
+
 def main():
     parser = argparse.ArgumentParser(description="AgileClaw — Personal AI Agent")
     parser.add_argument("--config", default="config.yaml", help="Config file path")
@@ -38,7 +93,12 @@ def main():
         print(f"Copy config.example.yaml to config.yaml and fill in your credentials.")
         return
 
-    config = load_config(config_path)
+    try:
+        config = normalize_config(load_config(config_path))
+    except ValueError as exc:
+        logger.error("Invalid config: %s", exc)
+        print(f"Invalid config: {exc}")
+        return
     logger.info("AgileClaw starting... version=%s", __version__)
 
     # Initialize agent
@@ -48,7 +108,8 @@ def main():
     # Initialize scheduler
     scheduler = None
     channel = None
-    if "cron" in config:
+    cron_cfg = config.get("cron")
+    if cron_cfg:
         def on_cron_trigger(job: dict):
             job_name = job.get("name", "(unnamed)")
             action = job.get("action", "chat")
@@ -78,7 +139,7 @@ def main():
                 logger.exception(f"Cron job failed: {job_name} ({exc})")
 
         scheduler = CronScheduler(
-            jobs_file=config["cron"]["jobs_file"],
+            jobs_file=cron_cfg["jobs_file"],
             on_trigger=on_cron_trigger,
         )
         agent.scheduler = scheduler
@@ -86,10 +147,11 @@ def main():
         logger.info("Scheduler started.")
 
     # Start Telegram channel
-    if "telegram" in config:
+    telegram_cfg = config.get("telegram")
+    if telegram_cfg:
         channel = TelegramChannel(
-            bot_token=config["telegram"]["bot_token"],
-            allowed_users=config["telegram"].get("allowed_users", []),
+            bot_token=telegram_cfg["bot_token"],
+            allowed_users=telegram_cfg.get("allowed_users", []),
             agent=agent,
         )
         logger.info("Starting Telegram bot...")
