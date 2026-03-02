@@ -1,268 +1,186 @@
-<div align="center">
+# AgileClaw 🦾
 
-# 🦅 AgileClaw
+A lightweight autonomous agent for KPI-driven execution.
 
-### *The AI agent that measures → learns → improves on its own*
+Core philosophy:
+- Keep the core small
+- Move domain logic to skills
+- Add new capabilities as tool plugins
+- Every goal runs as an Agile Team with measurable KPIs
 
-> 🚧 **Early Stage — Not Yet Functional**
-> 
-> This project is in its **initial development phase**. The code is being built and is **not ready to run yet**.  
-> APIs, config format, and structure will change significantly.  
-> Watch/Star to follow progress — contributions and ideas welcome!
+## Core Features
 
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude](https://img.shields.io/badge/AI-Claude%20Sonnet-orange.svg)](https://anthropic.com)
-[![Telegram](https://img.shields.io/badge/channel-Telegram-blue.svg)](https://telegram.org)
-[![Status](https://img.shields.io/badge/status-WIP-red.svg)]()
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+1. Telegram/CLI conversation
+2. Claude tool-use agent loop
+3. Tool plugins auto-discovery (`tools/*.py`)
+4. Skill catalog (`skills/*/SKILL.md`)
+5. Cron scheduler with action routing (`chat`, `agile_review`, `run_skill`)
+6. Agile review loop from `memory/goals.md`
+7. Goal-based Agile Team setup (`memory/teams/team-*.md`)
+8. Generic KPI tools + optional platform KPI tools
 
-**A lightweight personal AI agent with a built-in agile loop.**  
-Full PC access · Claude-powered · Telegram native · Cron scheduler  
-*Built for solo entrepreneurs, indie hackers, and small teams.*
-
-[Quick Start](#-quick-start) · [How It Works](#-how-the-agile-loop-works) · [Architecture](#-architecture) · [vs OpenClaw/nanoclaw](#-why-agileclaw)
-
-</div>
-
----
-
-## What is AgileClaw?
-
-AgileClaw is a **personal AI agent** that lives on your machine and runs a continuous agile loop:
-
-> **Set goals → Measure KPIs → Analyze results → Improve automatically → Repeat**
-
-It's not just another chatbot. AgileClaw **knows your goals**, **checks your metrics**, and **suggests concrete next steps** — every day, automatically.
-
-**Inspired by [OpenClaw](https://github.com/openclaw/openclaw) and [nanoclaw](https://github.com/qwibitai/nanoclaw)** — full PC access, no sandboxing. AgileClaw adds the missing piece: **a structured agile feedback loop so the agent actually improves your results over time.**
-
-**Who it's for:**
-- 🧑‍💻 **Solo entrepreneurs** who want an AI that tracks their business KPIs
-- 🚀 **Indie hackers** running multiple projects without a team
-- 👥 **Small teams** who want agile rituals without the overhead
-
----
-
-## Why AgileClaw?
-
-There are three tiers of AI agent tools:
-
-**🏢 Full platforms** (OpenClaw, nanoclaw) — powerful, but broad-purpose and complex to self-host  
-**🔬 Research frameworks** (AutoGen, CrewAI, LangChain) — built for multi-agent research, not daily personal use  
-**🦅 AgileClaw** — the missing middle: opinionated, goal-driven, simple enough to read in an afternoon
-
-| Feature | AgileClaw | OpenClaw | nanoclaw | AutoGen | LangChain |
-|---------|:---------:|:--------:|:--------:|:-------:|:---------:|
-| Built-in agile loop | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Full PC access (no sandbox) | ✅ | ✅ | ✅ | ✅ | ❌ |
-| KPI-driven goals | ✅ | ❌ | ❌ | ❌ | ❌ |
-| < 500 lines of core code | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Telegram native | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Cron scheduler built-in | ✅ | ✅ | ❌ | ❌ | ❌ |
-| File-based memory (no DB) | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Self-hostable on your laptop | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Subscription / cloud required | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-**AgileClaw vs OpenClaw:** OpenClaw is a full-featured platform with GUI, extensions, and marketplace. AgileClaw is a tiny hackable core you can read, fork, and own completely.
-
-**AgileClaw vs nanoclaw:** nanoclaw is a minimal agent scaffold. AgileClaw keeps the same simplicity but adds the agile loop, cron scheduling, and KPI tracking on top.
-
----
-
-## ⚡ Quick Start
-
-### 1. Clone & Install
-
-```bash
-git clone https://github.com/DaveLee-fun/AgileClaw.git
-cd AgileClaw
-./setup.sh
-```
-
-### 2. Configure
+## Quick Start
 
 ```bash
 cp config.example.yaml config.yaml
-# Edit config.yaml with your API keys
+# fill bot token + Claude API key
+
+pip install -r requirements.txt
+playwright install chromium
+python main.py
 ```
+
+## Configuration
+
+`config.yaml` example:
 
 ```yaml
 telegram:
-  bot_token: "YOUR_BOT_TOKEN"       # Get from @BotFather
-  allowed_users: [YOUR_USER_ID]     # Your Telegram user ID
+  bot_token: "YOUR_BOT_TOKEN"
+  allowed_users: [123456789]
 
 claude:
-  api_key: "YOUR_CLAUDE_API_KEY"    # From console.anthropic.com
+  api_key: "YOUR_CLAUDE_API_KEY"
   model: "claude-sonnet-4-5"
+  max_tokens: 4096
+  max_tool_rounds: 10
+  max_retries: 2
+  retry_base_delay: 1.0
 
 memory:
   dir: "./memory"
 
+skills:
+  dir: "./skills"
+
 cron:
   jobs_file: "./cron_jobs.json"
+
+browser:
+  headless: false
 ```
 
-### 3. Set Your Goals
+## Telegram Commands
 
-Edit `memory/goals.md`:
+- `/start` — help
+- `/goal <name> | <objective> [| <kpi_hint>]` — create Agile Team for a goal
+- `/teams` — list Agile Teams
+- `/agile` — run agile KPI review
+- `/report [daily|weekly]` — generate KPI report
+- `/skills` — list installed skills
+- `/runskill <skill_key> [instruction]` — execute a skill
+- `/cron` — list scheduled jobs
 
-```markdown
-# My Goals
+## Tool Plugin Interface
 
-## KPIs
-| Metric          | Current | Target |
-|-----------------|---------|--------|
-| MRR             | $500    | $2,000 |
-| Newsletter subs | 320     | 1,000  |
-| Daily users     | 150     | 500    |
+Any `tools/*.py` module can export `get_tool_specs()`:
 
-## How to Measure
-- MRR: check Stripe dashboard (run script scripts/stripe_mrr.py)
-- Newsletter: curl https://api.myplatform.com/subscribers
-- Daily users: check analytics API
+```python
+def get_tool_specs() -> list[dict]:
+    return [
+        {
+            "definition": {
+                "name": "my_tool",
+                "description": "...",
+                "input_schema": {...},
+            },
+            "handler": my_handler,  # (tool_input, context) -> str
+        }
+    ]
 ```
 
-### 4. Run
+No central registration edit is needed.
 
-```bash
-python main.py
+## Skills
+
+Create skills under:
+
+```text
+skills/<skill_name>/SKILL.md
 ```
 
-Then in Telegram: `/agile` → get your daily KPI report + action items.
+Recommended frontmatter:
 
+```md
 ---
-
-## 🔄 How the Agile Loop Works
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    AGILE LOOP                           │
-│                                                         │
-│   📋 GOALS          🔍 MEASURE         📊 ANALYZE       │
-│   goals.md    →    use tools     →    compare vs       │
-│   KPI targets      shell/web/api      targets           │
-│       │                                    │            │
-│       └────────────────────────────────────┘            │
-│                         ↓                               │
-│   🚀 IMPROVE         ✅ REPORT                          │
-│   suggest top 3  ←   what's working /                  │
-│   next actions       what's not                         │
-└─────────────────────────────────────────────────────────┘
+name: my-skill
+description: What this skill does
+---
 ```
 
-**Runs automatically** via cron (e.g., every morning at 9am):
+## Cron Job Format
+
+`cron_jobs.json` job entry:
+
 ```json
 {
-  "name": "daily-agile",
+  "id": "abcd1234",
+  "name": "daily-kpi",
   "schedule": "0 9 * * *",
-  "task": "Run agile review and send results to Telegram"
+  "action": "run_skill",
+  "skill": "kpi-daily-check",
+  "message": "오늘 KPI 체크하고 리스크 정리해줘",
+  "chat_id": "123456",
+  "enabled": true
 }
 ```
 
----
+Supported `action`:
+- `chat`
+- `agile_review`
+- `daily_report`
+- `weekly_report`
+- `run_skill`
 
-## 🏗 Architecture
+You can bootstrap from `cron_jobs.example.json`.
 
+## Built-in KPI Tools
+
+- `kpi_upsert_metric`: register/update KPI metrics for a team
+- `kpi_log_measurement`: append KPI measurements
+- `kpi_list_metrics`: view team KPI status
+- `threads_get_followers`: Threads Graph API follower/metric fetch (optional)
+- `reddit_get_karma`: Reddit public karma summary fetch (optional)
+
+Agile loop itself is metric-agnostic. Platform-specific tools are optional.
+Add any KPI source as another tool plugin under `tools/*.py`.
+
+## Tests
+
+```bash
+cd src
+python3 -m unittest discover -s tests -v
 ```
-agileclaw/
-├── main.py              # Entry point (< 80 lines)
-├── config.example.yaml  # Config template
+
+## Project Structure
+
+```text
+src/
+├── main.py
+├── cron_jobs.example.json
 ├── core/
-│   ├── agent.py         # Main agent loop + tool orchestration
-│   ├── claude.py        # Claude API client (tool_use loop)
-│   └── memory.py        # File-based memory (no DB needed)
+│   ├── agent.py
+│   ├── claude.py
+│   ├── memory.py
+│   └── skills.py
 ├── channels/
-│   └── telegram.py      # Telegram bot integration
-├── tools/
-│   ├── shell.py         # Run shell commands
-│   ├── files.py         # Read/write files
-│   ├── web.py           # Fetch web pages
-│   └── browser.py       # Browser control (Playwright)
+│   └── telegram.py
 ├── scheduler/
-│   └── cron.py          # Cron job scheduler (APScheduler)
-└── agile/
-    ├── loop.py          # Agile review logic + prompts
-    └── goals.md         # Your goals template
+│   └── cron.py
+├── tools/
+│   ├── __init__.py
+│   ├── shell.py
+│   ├── files.py
+│   ├── web.py
+│   ├── browser.py
+│   ├── kpi.py
+│   ├── threads.py
+│   └── reddit.py
+├── agile/
+│   ├── loop.py
+│   ├── report.py
+│   └── team.py
+└── skills/
+    ├── agile-weekly-review/SKILL.md
+    └── kpi-daily-check/SKILL.md
 ```
-
-**Core code is tiny:** `core/` + `agile/` is under 300 lines total. Read it in 15 minutes.
-
----
-
-## 🛠 Tools Available
-
-| Tool | What It Does |
-|------|-------------|
-| `shell` | Run any shell command (scripts, CLIs, APIs) |
-| `read_file` | Read any file on your machine |
-| `write_file` | Write/update any file |
-| `web_fetch` | Fetch a URL, extract readable content |
-| `browser_open` | Open a URL in Playwright browser |
-| `browser_click` | Click a page element |
-| `browser_type` | Type into an input field |
-| `browser_get_text` | Extract text from current page |
-| `browser_screenshot` | Take a screenshot |
-
----
-
-## 💡 Use Cases
-
-**📱 App maker tracking installs**
-> "Check my App Store stats, compare vs last week, tell me what to do next"
-
-**📝 Content creator tracking engagement**
-> "Measure my Threads/Reddit engagement today vs my weekly target"
-
-**💰 SaaS founder tracking MRR**
-> "Pull Stripe MRR, check churn vs target, suggest top priority"
-
-**📚 Course creator tracking students**
-> "Check new enrollments this week, compare vs goal, what should I post today?"
-
----
-
-## 🗺 Roadmap
-
-- [x] Core agent loop (Claude + tools)
-- [x] Telegram channel
-- [x] Cron scheduler
-- [x] Agile review loop
-- [x] File-based memory
-- [ ] Discord channel support
-- [ ] Web dashboard for KPI visualization
-- [ ] Plugin/skill system for custom tools
-- [ ] Pre-built skill packs (App Store, Stripe, Reddit, Threads)
-- [ ] Multi-agent support (delegate tasks to sub-agents)
-
----
-
-## 🤝 Contributing
-
-AgileClaw is intentionally small. Before adding features, ask:
-> *"Can this be done in a shell script or custom skill instead?"*
-
-1. Fork it
-2. Make your change (keep it small)
-3. Open a PR
-
-**Great first contributions:**
-- New tool (e.g., `tools/slack.py`, `tools/notion.py`)
-- New channel (e.g., `channels/discord.py`)
-- Example skill in `skills/`
-- Bug fixes
-
----
-
-## 📜 License
-
-MIT — do whatever you want with it.
-
----
-
-<div align="center">
-
-*Built on the shoulders of [OpenClaw](https://github.com/openclaw/openclaw) and [nanoclaw](https://github.com/qwibitai/nanoclaw).*  
-*If you find this useful, consider starring ⭐ the repo.*
-
-</div>
