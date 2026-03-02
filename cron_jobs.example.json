@@ -1,0 +1,50 @@
+{
+  "daily_chat": {
+    "id": "daily_chat",
+    "name": "Daily KPI ping",
+    "schedule": "0 9 * * *",
+    "action": "chat",
+    "message": "오늘 KPI 현황 확인하고 가장 중요한 리스크 1개만 요약해줘",
+    "chat_id": "default",
+    "enabled": true,
+    "created_at": "2026-03-02T09:00:00"
+  },
+  "daily_report": {
+    "id": "daily_report",
+    "name": "Daily KPI report",
+    "schedule": "0 21 * * *",
+    "action": "daily_report",
+    "chat_id": "default",
+    "enabled": true,
+    "created_at": "2026-03-02T09:00:00"
+  },
+  "weekly_agile": {
+    "id": "weekly_agile",
+    "name": "Weekly agile review",
+    "schedule": "0 11 * * 0",
+    "action": "agile_review",
+    "chat_id": "default",
+    "enabled": true,
+    "created_at": "2026-03-02T09:00:00"
+  },
+  "weekly_report": {
+    "id": "weekly_report",
+    "name": "Weekly KPI report",
+    "schedule": "0 11 * * 0",
+    "action": "weekly_report",
+    "chat_id": "default",
+    "enabled": true,
+    "created_at": "2026-03-02T09:00:00"
+  },
+  "daily_skill": {
+    "id": "daily_skill",
+    "name": "Daily KPI skill run",
+    "schedule": "0 21 * * *",
+    "action": "run_skill",
+    "skill": "kpi-daily-check",
+    "message": "오늘 수치 기준으로 내일 첫 액션 1개를 정해줘",
+    "chat_id": "default",
+    "enabled": true,
+    "created_at": "2026-03-02T09:00:00"
+  }
+}
