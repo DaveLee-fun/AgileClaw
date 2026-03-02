@@ -3,15 +3,29 @@ Simple file-based memory.
 Stores conversation history, goals, and logs as plain files.
 """
 import json
-import os
 from datetime import datetime
 from pathlib import Path
+from agile.loop import GOALS_TEMPLATE
+from agile.team import make_team_id, build_team_charter
 
 
 class Memory:
     def __init__(self, memory_dir: str = "./memory"):
         self.dir = Path(memory_dir)
         self.dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_defaults()
+
+    def _ensure_defaults(self):
+        goals_file = self.dir / "goals.md"
+        if not goals_file.exists():
+            goals_file.write_text(GOALS_TEMPLATE)
+
+        context_file = self.dir / "CONTEXT.md"
+        if not context_file.exists():
+            context_file.write_text("# Context\n\n")
+
+        teams_dir = self.dir / "teams"
+        teams_dir.mkdir(parents=True, exist_ok=True)
 
     def load_goals(self) -> str:
         """Load goals.md content."""
@@ -64,3 +78,53 @@ class Memory:
         history = history[-100:]
         with open(history_file, "w") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
+
+    def create_team(self, goal_name: str, objective: str, kpi_hint: str = "") -> dict:
+        """Create a goal-specific agile team charter file."""
+        team_id = make_team_id(goal_name)
+        charter = build_team_charter(
+            team_id=team_id,
+            goal_name=goal_name,
+            objective=objective,
+            kpi_hint=kpi_hint,
+        )
+        team_file = self.dir / "teams" / f"{team_id}.md"
+        team_file.write_text(charter)
+        return {
+            "team_id": team_id,
+            "path": str(team_file.resolve()),
+            "goal_name": goal_name,
+            "objective": objective,
+        }
+
+    def list_teams(self) -> list[dict]:
+        """List all agile team charter files."""
+        teams_dir = self.dir / "teams"
+        if not teams_dir.exists():
+            return []
+
+        teams: list[dict] = []
+        for path in sorted(teams_dir.glob("team-*.md")):
+            team_id = path.stem
+            goal_name = team_id
+            try:
+                for line in path.read_text().splitlines():
+                    if line.startswith("- Goal Name:"):
+                        goal_name = line.split(":", 1)[1].strip()
+                        break
+            except Exception:
+                pass
+            teams.append(
+                {
+                    "team_id": team_id,
+                    "goal_name": goal_name,
+                    "path": str(path.resolve()),
+                }
+            )
+        return teams
+
+    def load_team_charter(self, team_id: str) -> str:
+        team_file = self.dir / "teams" / f"{team_id}.md"
+        if not team_file.exists():
+            return ""
+        return team_file.read_text()
