@@ -85,6 +85,32 @@ class MemoryTeamTests(unittest.TestCase):
             self.assertNotIn("3", upgraded_index)
             self.assertIn(team_id, upgraded_index.values())
 
+    def test_legacy_collision_does_not_reuse_wrong_team(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            memory = Memory(memory_dir=tmp)
+            legacy_team_id = "team-legacy-growth"
+            legacy_team_file = Path(tmp) / "teams" / f"{legacy_team_id}.md"
+            legacy_team_file.write_text(
+                build_team_charter(
+                    team_id=legacy_team_id,
+                    goal_name="3월 사용자 증가 목표",
+                    objective="legacy growth objective",
+                )
+            )
+
+            index_path = Path(tmp) / "teams" / "index.json"
+            index_path.write_text(json.dumps({"3": legacy_team_id}, ensure_ascii=False))
+
+            created = memory.create_team(
+                goal_name="3월 매출 목표",
+                objective="different goal should not reuse legacy-collided team",
+            )
+
+            self.assertTrue(created["created"])
+            self.assertNotEqual(created["team_id"], legacy_team_id)
+            upgraded_index = json.loads(index_path.read_text())
+            self.assertNotIn("3", upgraded_index)
+
 
 if __name__ == "__main__":
     unittest.main()
