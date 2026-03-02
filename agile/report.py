@@ -4,14 +4,24 @@ KPI report prompt builders.
 from datetime import datetime
 
 
-def build_daily_report_prompt(goals_content: str) -> str:
+def _team_refs_section(team_refs: str) -> str:
+    refs = (team_refs or "").strip()
+    if not refs:
+        return "Goal team charters:\n- (none)"
+    return f"Goal team charters:\n---\n{refs}\n---"
+
+
+def build_daily_report_prompt(goals_content: str, team_refs: str = "") -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    teams_block = _team_refs_section(team_refs)
     return f"""Generate today's KPI progress report for {now}.
 
 Goals and KPI definitions:
 ---
 {goals_content}
 ---
+
+{teams_block}
 
 Requirements:
 1. Measure today's KPI values using tools.
@@ -22,14 +32,17 @@ Requirements:
 """
 
 
-def build_weekly_report_prompt(goals_content: str) -> str:
+def build_weekly_report_prompt(goals_content: str, team_refs: str = "") -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    teams_block = _team_refs_section(team_refs)
     return f"""Generate this week's KPI review report for {now}.
 
 Goals and KPI definitions:
 ---
 {goals_content}
 ---
+
+{teams_block}
 
 Requirements:
 1. Measure current KPI values using tools.
