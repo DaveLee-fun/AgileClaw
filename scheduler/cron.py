@@ -27,6 +27,9 @@ class CronScheduler:
     def _load_and_schedule(self):
         """Load persisted jobs and schedule them."""
         for raw_job in self._load_jobs().values():
+            if not isinstance(raw_job, dict):
+                logger.warning("Skipping invalid cron job payload (not object): %r", raw_job)
+                continue
             job = self._normalize_job(raw_job)
             if not job.get("enabled", True):
                 continue
@@ -59,6 +62,16 @@ class CronScheduler:
 
     @staticmethod
     def _normalize_job(job: dict) -> dict:
+        if not isinstance(job, dict):
+            return {
+                "id": "",
+                "name": "(invalid)",
+                "schedule": "",
+                "action": "chat",
+                "message": "",
+                "enabled": False,
+            }
+
         normalized = dict(job)
         if "message" not in normalized and "task" in normalized:
             normalized["message"] = normalized["task"]
@@ -163,7 +176,13 @@ class CronScheduler:
         return True
 
     def list_jobs(self) -> list[dict]:
-        return [self._normalize_job(job) for job in self._load_jobs().values()]
+        jobs: list[dict] = []
+        for raw_job in self._load_jobs().values():
+            job = self._normalize_job(raw_job)
+            if not job.get("id"):
+                continue
+            jobs.append(job)
+        return jobs
 
     def start(self):
         self.scheduler.start()
