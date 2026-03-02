@@ -1,0 +1,17 @@
+telegram:
+  bot_token: "YOUR_BOT_TOKEN"
+  allowed_users: [123456789]  # Telegram user IDs allowed to talk to the agent
+
+claude:
+  api_key: "YOUR_CLAUDE_API_KEY"
+  model: "claude-sonnet-4-5"
+  max_tokens: 4096
+
+memory:
+  dir: "./memory"
+
+cron:
+  jobs_file: "./cron_jobs.json"
+
+browser:
+  headless: false  # Set true for server environments
