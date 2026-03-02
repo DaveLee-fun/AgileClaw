@@ -3,7 +3,6 @@ Web fetch tool — fetch URL content as text/markdown.
 Uses httpx (no API key needed).
 """
 import httpx
-from urllib.parse import quote
 
 TOOL_DEFINITION = {
     "name": "web_fetch",
@@ -44,3 +43,17 @@ def fetch(url: str, max_chars: int = 5000) -> str:
             return text[:max_chars]
     except Exception as e:
         return f"Error fetching {url}: {e}"
+
+
+def _handle_web_fetch(tool_input: dict, context: dict) -> str:
+    max_chars = int(tool_input.get("max_chars", 5000))
+    return fetch(tool_input["url"], max_chars=max_chars)
+
+
+def get_tool_specs() -> list[dict]:
+    return [
+        {
+            "definition": TOOL_DEFINITION,
+            "handler": _handle_web_fetch,
+        }
+    ]
